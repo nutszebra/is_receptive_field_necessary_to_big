@@ -40,14 +40,14 @@ def conv_init(m):
 
 class wide_basic(NN):
 
-    def __init__(self, in_planes, planes, dropout_rate, is_conv1x1=True, stride=1):
+    def __init__(self, in_planes, planes, dropout_rate, is_conv1x1=(True, True), stride=1):
         super(wide_basic, self).__init__()
         print('--bottleneck start')
         self.bn1 = nn.BatchNorm2d(in_planes)
-        self.conv1 = conv(in_planes, planes, is_conv1x1=is_conv1x1, stride=1)
+        self.conv1 = conv(in_planes, planes, is_conv1x1=is_conv1x1[0], stride=1)
         self.dropout = nn.Dropout(p=dropout_rate)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv2 = conv(planes, planes, is_conv1x1=is_conv1x1, stride=stride)
+        self.conv2 = conv(planes, planes, is_conv1x1=is_conv1x1[1], stride=stride)
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != planes:
@@ -71,14 +71,14 @@ class wide_basic(NN):
 
 class Wide_ResNet(NN):
 
-    def __init__(self, depth, widen_factor, dropout_rate, num_classes, conv1x1=(1, 1, 1, 1, 1, 1, 1), base=16):
+    def __init__(self, depth, widen_factor, dropout_rate, num_classes, conv1x1=(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), base=16):
         super(Wide_ResNet, self).__init__()
         self.in_planes = base
 
         assert ((depth - 4) % 6 == 0), 'Wide-resnet depth should be 6n+4'
         n = int((depth - 4) / 6)
         k = widen_factor
-        assert(int(3 * n + 1) == len(conv1x1))
+        assert(int(6 * n + 1) == len(conv1x1))
 
         print('| Wide-Resnet %dx%d' % (depth, k))
         nStages = [base, base * k, base * k * 2, base * k * 4]
@@ -88,13 +88,13 @@ class Wide_ResNet(NN):
         self.conv1 = conv(3, nStages[0], is_conv1x1=conv1x1[counter], stride=1)
         counter += 1
         # first bottlenecks
-        self.layer1 = self._wide_layer(wide_basic, nStages[1], n, dropout_rate, stride=1, is_conv1x1=conv1x1[counter:counter + n])
-        counter += n
+        self.layer1 = self._wide_layer(wide_basic, nStages[1], n, dropout_rate, stride=1, is_conv1x1=conv1x1[counter:counter + 2 * n])
+        counter += 2 * n
         # second bottlenecks
-        self.layer2 = self._wide_layer(wide_basic, nStages[2], n, dropout_rate, stride=2, is_conv1x1=conv1x1[counter:counter + n])
-        counter += n
+        self.layer2 = self._wide_layer(wide_basic, nStages[2], n, dropout_rate, stride=2, is_conv1x1=conv1x1[counter:counter + 2 * n])
+        counter += 2 * n
         # third bottlenecks
-        self.layer3 = self._wide_layer(wide_basic, nStages[3], n, dropout_rate, stride=2, is_conv1x1=conv1x1[counter:counter + n])
+        self.layer3 = self._wide_layer(wide_basic, nStages[3], n, dropout_rate, stride=2, is_conv1x1=conv1x1[counter:counter + 2 * n])
         self.bn1 = nn.BatchNorm2d(nStages[3], momentum=0.9)
         self.linear = nn.Linear(nStages[3], num_classes)
         self.name = 'Wide_ResNet_{}_{}_{}_{}_{}'.format(depth, widen_factor, dropout_rate, num_classes, '-'.join([str(i) for i in conv1x1]))
@@ -103,8 +103,8 @@ class Wide_ResNet(NN):
         strides = [stride] + [1] * int(num_blocks - 1)
         layers = []
 
-        for i in range(len(is_conv1x1)):
-            layers.append(block(self.in_planes, planes, dropout_rate, is_conv1x1=is_conv1x1[i], stride=strides[i]))
+        for i in range(int(len(is_conv1x1) / 2)):
+            layers.append(block(self.in_planes, planes, dropout_rate, is_conv1x1=(is_conv1x1[2 * i], is_conv1x1[2 * i + 1]), stride=strides[i]))
             self.in_planes = planes
         [layer.weight_initialization() for layer in layers]
         return nn.Sequential(*layers)
@@ -128,6 +128,6 @@ class Wide_ResNet(NN):
 
 
 if __name__ == '__main__':
-    net = Wide_ResNet(16, 1, 0.3, 10)
+    net = Wide_ResNet(16, 1, 0.3, 10, conv1x1=(1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0))
     y = net(Variable(torch.randn(1, 3, 32, 32)))
     print(y.size())
