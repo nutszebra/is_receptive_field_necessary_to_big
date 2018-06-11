@@ -117,7 +117,7 @@ class Wide_ResNet(NN):
 
     def forward(self, x):
         out = self.conv1(x)
-        out = F.max_pool2d(x, 3, 1, 1)
+        out = F.max_pool2d(out, 3, 1, 1)
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
