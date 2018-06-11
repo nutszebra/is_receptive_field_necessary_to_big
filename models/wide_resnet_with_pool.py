@@ -63,8 +63,8 @@ class wide_basic(NN):
         self.conv2.bias.data = torch.FloatTensor(NN.bias_initialization(self.conv2, constant=0))
 
     def forward(self, x):
-        out = F.maxpool2d(self.dropout(self.conv1(F.relu(self.bn1(x)))), 3, 1, 1)
-        out = F.maxpool2d(self.conv2(F.relu(self.bn2(out))), 3, 1, 1)
+        out = F.max_pool2d(self.dropout(self.conv1(F.relu(self.bn1(x)))), 3, 1, 1)
+        out = F.max_pool2d(self.conv2(F.relu(self.bn2(out))), 3, 1, 1)
         out += self.shortcut(x)
         return out
 
